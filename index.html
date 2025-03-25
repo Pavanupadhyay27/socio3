@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#000000" />
+    <meta name="description" content="Web3Social - Decentralized Social Platform" />
+    <title>Web3Social</title>
+  </head>
+  <body class="bg-black">
+    <noscript>You need to enable JavaScript to run this app.</noscript>
+    
+    <!-- Loading indicator with improved styling -->
+    <div id="initial-loader" style="
+      position: fixed;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(to bottom right, #312e81, #581c87, #831843);
+      color: white;
+      font-family: system-ui, -apple-system, sans-serif;
+      transition: opacity 0.3s ease-in-out;
+    ">
+      <div style="text-align: center;">
+        <div style="margin-bottom: 1rem; font-size: 1.25rem;">Loading Web3Social...</div>
+        <div style="
+          width: 50px;
+          height: 50px;
+          border: 3px solid rgba(168, 85, 247, 0.3);
+          border-radius: 50%;
+          border-top-color: #a855f7;
+          animation: spin 1s linear infinite;
+          margin: 0 auto;
+          filter: drop-shadow(0 0 10px rgba(168, 85, 247, 0.5));
+        "></div>
+      </div>
+    </div>
+    
+    <div id="root"></div>
+    <div id="load-error" style="display:none; color:white; padding:20px;">
+      Failed to load application. Please check:<br>
+      1. Your internet connection<br>
+      2. Environment variables are set correctly<br>
+      3. Console for detailed errors
+    </div>
+
+    <script type="module" src="/src/main.tsx"></script>
+    <style>
+      @keyframes spin {
+        to { transform: rotate(360deg); }
+      }
+    </style>
+    <script>
+      window.addEventListener('load', () => {
+        const loader = document.getElementById('initial-loader');
+        if (loader) {
+          loader.style.opacity = '0';
+          setTimeout(() => loader.remove(), 300);
+        }
+        window.appLoaded = true;
+      });
+
+      // Reduce timeout to 5 seconds
+      setTimeout(() => {
+        if (!window.appLoaded) {
+          document.getElementById('load-error').style.display = 'block';
+        }
+      }, 5000);
+    </script>
+  </body>
+</html>
