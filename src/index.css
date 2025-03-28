@@ -1,10 +1,12 @@
-@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 :root {
+  --primary: rgb(147, 51, 234);
+  --primary-light: rgb(168, 85, 247);
   font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
   line-height: 1.5;
   font-weight: 400;
@@ -17,20 +19,50 @@
 body {
   margin: 0;
   min-height: 100vh;
-  background: #030014;  /* Deeper background */
+  background: #000;
   color: #fff;
+  font-family: 'Inter', sans-serif;
   overscroll-behavior: none;
   -webkit-overflow-scrolling: touch;
+  overflow-x: hidden;
+  width: 100%;
 }
 
-/* Enhanced gradient background */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--primary);
+  border-radius: 3px;
+}
+
+.glass {
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  transition: all 0.3s ease-in-out;
+}
+
+.glass:hover {
+  background: rgba(255, 255, 255, 0.1);
+  transform: translateY(-2px);
+}
+
+.btn-primary {
+  @apply px-6 py-2.5 bg-purple-600 text-white rounded-lg transition-all duration-200 ease-out hover:bg-purple-500 active:scale-95;
+}
+
+.btn-secondary {
+  @apply px-6 py-2.5 border border-purple-600/50 text-purple-400 rounded-lg transition-all duration-200 ease-out hover:bg-purple-600/10 active:scale-95;
+}
+
 .bg-deep-space {
-  background: linear-gradient(
-    to bottom right,
-    #030014,  /* Deeper indigo */
-    #1a0938,  /* Deeper purple */
-    #260526   /* Deeper pink */
-  );
+  background: linear-gradient(to bottom right, #030014, #1a0938, #260526);
 }
 
 .bg-glass-deep {
@@ -38,14 +70,8 @@ body {
   backdrop-filter: blur(12px);
 }
 
-/* Custom gradient text animation */
 .text-gradient {
-  background: linear-gradient(
-    to right,
-    #c4b5fd,
-    #f9a8d4,
-    #c4b5fd
-  );
+  background: linear-gradient(to right, #c4b5fd, #f9a8d4, #c4b5fd);
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
@@ -59,19 +85,10 @@ body {
   }
 }
 
-/* Smooth scrolling */
 html {
   scroll-behavior: smooth;
 }
 
-/* Custom loader animation */
-@keyframes spin {
-  to { 
-    transform: rotate(360deg);
-  }
-}
-
-/* Futuristic button hover effect */
 .btn-futuristic {
   position: relative;
   overflow: hidden;
@@ -86,7 +103,6 @@ html {
   100% { background-position: 0% 50%; }
 }
 
-/* Cyberpunk text effect */
 .text-cyberpunk {
   text-transform: uppercase;
   background: linear-gradient(to right, #6366f1, #8b5cf6, #d946ef);
@@ -94,10 +110,9 @@ html {
   background-clip: text;
   color: transparent;
   position: relative;
-  text-shadow: 0 0 20px rgba(168,85,247,0.5);
+  text-shadow: 0 0 20px rgba(168, 85, 247, 0.5);
 }
 
-/* Performance optimizations */
 .will-change-transform {
   will-change: transform;
   transform: translateZ(0);
@@ -111,7 +126,6 @@ html {
   -webkit-font-smoothing: antialiased;
 }
 
-/* Reduce animation complexity for better performance */
 @media (prefers-reduced-motion: reduce) {
   .motion-reduce {
     animation-duration: 0.01ms !important;
@@ -121,9 +135,104 @@ html {
   }
 }
 
-/* Improved scrolling performance */
 .scroll-container {
   overflow: auto;
   -webkit-overflow-scrolling: touch;
   scroll-behavior: smooth;
+}
+
+#root {
+  min-height: 100vh;
+  background: linear-gradient(to bottom right, #030014, #1a0938, #260526);
+  width: 100%;
+  overflow-x: hidden;
+}
+
+@keyframes twinkle {
+  0% { opacity: 0.2; }
+  50% { opacity: 1; }
+  100% { opacity: 0.2; }
+}
+
+.star {
+  animation: twinkle 3s infinite ease-in-out;
+  animation-delay: var(--delay, 0s);
+}
+
+.star-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.star-layer-1 { animation-duration: 3s; }
+.star-layer-2 { animation-duration: 4s; }
+.star-layer-3 { animation-duration: 5s; }
+
+.bg-space {
+  background: radial-gradient(ellipse at bottom, #1B2735 0%, #090A0F 100%);
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.loading-enter {
+  opacity: 0;
+}
+
+.loading-enter-active {
+  opacity: 1;
+  transition: opacity 200ms ease-in;
+}
+
+.loading-exit {
+  opacity: 1;
+}
+
+.loading-exit-active {
+  opacity: 0;
+  transition: opacity 200ms ease-out;
+}
+
+.content-visible {
+  opacity: 1;
+  transition: opacity 300ms ease-in;
+}
+
+.content-hidden {
+  opacity: 0;
+}
+
+* {
+  backface-visibility: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+.gpu-accelerated {
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  perspective: 1000px;
+  will-change: transform;
+}
+
+.loading-container {
+  contain: layout style paint;
+}
+
+.content-loading {
+  visibility: hidden;
+  opacity: 0;
+  transition: opacity 0.2s ease-out;
+}
+
+.content-loaded {
+  visibility: visible;
+  opacity: 1;
+  transition: opacity 0.2s ease-in;
 }

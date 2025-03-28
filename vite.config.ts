@@ -4,22 +4,24 @@ import path from 'path';
 
 export default defineConfig({
   plugins: [react()],
-  server: {
-    port: 5173,
-    host: true,
-    open: true
-  },
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src')
-    }
+    },
+    extensions: ['.js', '.jsx', '.ts', '.tsx']
   },
-  build: {
-    outDir: 'dist',
-    sourcemap: true,
-    minify: true
+  server: {
+    port: 5173,
+    host: true
   },
   optimizeDeps: {
-    include: ['react', 'react-dom', 'react-router-dom']
+    include: ['react', 'react-dom', 'react-router-dom', 'framer-motion', 'lucide-react'],
+    exclude: ['@web3-react/walletconnect-connector']
+  },
+  build: {
+    sourcemap: true,
+    commonjsOptions: {
+      transformMixedEsModules: true
+    }
   }
 });

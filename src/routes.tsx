@@ -1,7 +1,8 @@
-import { RouteObject } from 'react-router-dom';
+import React from 'react';
+import type { RouteObject } from 'react-router-dom';
 import App from './App';
-import { Home } from './pages/Home';
-import { CreatePost } from './pages/CreatePost';
+import Home from './pages/Home';
+import { ProfileForm } from './components/ProfileForm';
 
 export const routes: RouteObject[] = [
   {
@@ -9,12 +10,18 @@ export const routes: RouteObject[] = [
     element: <App />,
     children: [
       {
-        path: '',
-        element: <Home />
+        path: '/',
+        element: <Home />,
       },
       {
-        path: 'create',
-        element: <CreatePost />
+        path: '/profile-setup',
+        element: <ProfileForm 
+          onClose={() => window.history.back()}
+          onSubmit={(data) => {
+            localStorage.setItem('userProfile', JSON.stringify(data));
+            window.history.back();
+          }}
+        />
       }
     ]
   }
