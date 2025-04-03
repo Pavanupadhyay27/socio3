@@ -1,203 +1,211 @@
-import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
-import { ethers } from 'ethers';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { ipfsStorage } from '../services/ipfsStorage';
 
 interface WalletContextType {
   account: string | null;
+  isConnected: boolean;
   isConnecting: boolean;
-  error: Error | null;
   connect: () => Promise<void>;
-  disconnect: () => Promise<void>;
-  signMessage: (message: string) => Promise<string | null>;
+  disconnect: () => void;
+  userProfile: any;
+  profileCID: string | null;
+  checkExistingProfile: (address: string) => Promise<boolean>;
 }
 
-const WalletContext = createContext<WalletContextType | null>(null);
+const WalletContext = createContext<WalletContextType | undefined>(undefined);
 
 export function WalletProvider({ children }: { children: React.ReactNode }) {
-  const [account, setAccount] = useState<string | null>(() => {
-    // Initialize from localStorage on mount
-    const savedAuth = localStorage.getItem('walletAuth');
-    if (savedAuth) {
-      const { account } = JSON.parse(savedAuth);
-      return account;
-    }
-    return null;
-  });
+  const [account, setAccount] = useState<string | null>(null);
+  const [isConnected, setIsConnected] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
-  const [error, setError] = useState<Error | null>(null);
+  const [profileCID, setProfileCID] = useState<string | null>(null);
+  const [userProfile, setUserProfile] = useState<any>(null);
 
-  // Check connection status periodically
-  useEffect(() => {
-    let intervalId: NodeJS.Timeout;
-    
-    const checkConnection = async () => {
-      if (window.ethereum && account) {
-        try {
-          const provider = new ethers.providers.Web3Provider(window.ethereum);
-          const accounts = await provider.listAccounts();
-          
-          if (!accounts.includes(account)) {
-            handleDisconnect(false); // Disconnect without page reload
-          }
-        } catch (err) {
-          console.error('Connection check failed:', err);
+  const resetState = () => {
+    setAccount(null);
+    setIsConnected(false);
+    setUserProfile(null);
+    setProfileCID(null);
+    localStorage.removeItem('lastConnectedAccount');
+    Object.keys(localStorage).forEach(key => {
+      if (key.startsWith('profile_cid_')) {
+        localStorage.removeItem(key);
+      }
+    });
+  };
+
+  const checkExistingProfile = async (address: string) => {
+    try {
+      const savedCID = localStorage.getItem(`profile_cid_${address.toLowerCase()}`);
+      if (savedCID) {
+        const profile = await ipfsStorage.getProfile(savedCID);
+        if (profile) {
+          setProfileCID(savedCID);
+          setUserProfile(profile);
+          return true;
         }
       }
-    };
-
-    if (account) {
-      // Check connection every 30 seconds
-      intervalId = setInterval(checkConnection, 30000);
-      // Also check when window regains focus
-      window.addEventListener('focus', checkConnection);
+      return false;
+    } catch (error) {
+      console.error('Error checking profile:', error);
+      return false;
     }
+  };
 
-    return () => {
-      if (intervalId) clearInterval(intervalId);
-      window.removeEventListener('focus', checkConnection);
-    };
+  const initializeWallet = useCallback(async () => {
+    if (!window.ethereum || account) return; // Skip if no provider or already initialized
+    
+    try {
+      const accounts = await window.ethereum.request({ 
+        method: 'eth_accounts' // Use eth_accounts instead of eth_requestAccounts
+      });
+      
+      if (accounts?.[0]) {
+        setAccount(accounts[0]);
+        setIsConnected(true);
+        await checkExistingProfile(accounts[0]);
+      }
+    } catch (error) {
+      console.error('Wallet initialization error:', error);
+    }
   }, [account]);
 
-  const handleDisconnect = useCallback(async (shouldReload = false) => {
-    setAccount(null);
-    localStorage.removeItem('walletAuth');
-    
-    if (window.ethereum?.removeAllListeners) {
-      window.ethereum.removeAllListeners();
-    }
-
-    // Only reload if explicitly requested
-    if (shouldReload) {
-      window.location.reload();
-    }
-  }, []);
-
-  const connect = useCallback(async () => {
+  const connect = async () => {
     if (!window.ethereum) {
-      throw new Error('Please install MetaMask!');
+      alert('Please install MetaMask');
+      return;
     }
+
+    setIsConnecting(true);
 
     try {
-      setIsConnecting(true);
-      setError(null);
+      // Request accounts with explicit permission request
+      const accounts = await window.ethereum.request({
+        method: 'eth_requestAccounts',
+        params: [{
+          eth_accounts: {}
+        }]
+      });
 
-      // Request account access
-      const provider = new ethers.providers.Web3Provider(window.ethereum);
-      
-      // This triggers the MetaMask popup
-      await provider.send("eth_requestAccounts", []);
-      
-      // Get the signer
-      const signer = provider.getSigner();
-      const address = await signer.getAddress();
-      
-      // Create welcome message
-      const message = "Welcome to Web3Social! Click to sign in and accept the terms of service.";
-      
-      // Request signature (this will trigger another MetaMask popup)
-      const signature = await signer.signMessage(message);
-
-      if (!signature) {
-        throw new Error('Signature required to sign in');
+      if (accounts?.[0]) {
+        setAccount(accounts[0]);
+        setIsConnected(true);
+        await checkExistingProfile(accounts[0]);
       }
-
-      setAccount(address);
-      
-      // Store session
-      localStorage.setItem('walletAuth', JSON.stringify({
-        account: address,
-        signature,
-        timestamp: Date.now()
-      }));
-
-    } catch (err: any) {
-      setAccount(null);
-      localStorage.removeItem('walletAuth');
-      console.error('Wallet connection error:', err);
-      
-      if (err.code === 4001) {
-        throw new Error('Please connect your wallet to continue');
-      } else if (err.code === -32002) {
-        throw new Error('Please open MetaMask and accept the connection');
+    } catch (error: any) {
+      console.error('Connect error:', error);
+      resetState();
+      if (error.code === 4001) {
+        alert('Connection rejected. Please try again.');
+      } else {
+        alert('Failed to connect. Please try again.');
       }
-      throw err;
     } finally {
       setIsConnecting(false);
     }
-  }, []);
+  };
 
-  const disconnect = useCallback(async () => {
-    await handleDisconnect(false); // Don't reload on manual disconnect
-  }, [handleDisconnect]);
-
-  const signMessage = useCallback(async (message: string) => {
-    if (!account || !window.ethereum) return null;
-    
+  const disconnect = async () => {
     try {
-      const msgParams = `0x${Buffer.from(message).toString('hex')}`;
-      return await window.ethereum.request({
-        method: 'personal_sign',
-        params: [msgParams, account, '']
-      });
-    } catch (err) {
-      console.error('Signing failed:', err);
-      return null;
-    }
-  }, [account]);
+      // First clear all state and storage
+      resetState();
+      
+      // Clear any MetaMask cached connections
+      if (window.ethereum) {
+        try {
+          // Force MetaMask disconnection
+          await window.ethereum?.request({
+            method: 'eth_requestAccounts',
+            params: []
+          });
 
-  // Handle account changes
-  useEffect(() => {
-    if (!window.ethereum) return;
-
-    const handleAccountsChanged = async (accounts: string[]) => {
-      if (accounts.length === 0) {
-        await handleDisconnect(false);
-      } else if (account !== accounts[0]) {
-        // If account changed, update it without full reload
-        setAccount(accounts[0]);
-        const savedAuth = localStorage.getItem('walletAuth');
-        if (savedAuth) {
-          const authData = JSON.parse(savedAuth);
-          localStorage.setItem('walletAuth', JSON.stringify({
-            ...authData,
-            account: accounts[0],
-            timestamp: Date.now()
-          }));
+          // Clear permissions
+          await window.ethereum?.request({
+            method: 'wallet_requestPermissions',
+            params: [{ eth_accounts: {} }]
+          });
+        } catch (e) {
+          console.log('MetaMask disconnect error:', e);
         }
+
+        // Remove all listeners
+        window.ethereum.removeAllListeners?.();
       }
-    };
 
-    const handleChainChanged = () => {
-      // Optionally handle chain changes without reload
-      // You might want to update some state here instead
-    };
+      // Clear all storage
+      sessionStorage.clear();
+      const theme = localStorage.getItem('theme');
+      localStorage.clear();
+      if (theme) localStorage.setItem('theme', theme);
 
-    window.ethereum.on('accountsChanged', handleAccountsChanged);
-    window.ethereum.on('chainChanged', handleChainChanged);
+      // Reset all state
+      setAccount(null);
+      setIsConnected(false);
+      setUserProfile(null);
+      setProfileCID(null);
+
+      // Force reload to clear any remaining state
+      window.location.reload();
+    } catch (error) {
+      console.error('Disconnect error:', error);
+      resetState();
+      window.location.reload();
+    }
+  };
+
+  const handleAccountsChanged = async (accounts: string[]) => {
+    if (!accounts || accounts.length === 0) {
+      await disconnect();
+    } else if (accounts[0] !== account) {
+      resetState();
+      setAccount(accounts[0]);
+      setIsConnected(true);
+      const hasProfile = await checkExistingProfile(accounts[0]);
+      if (!hasProfile) {
+        window.location.replace('/');
+      }
+    }
+  };
+
+  useEffect(() => {
+    initializeWallet();
+    
+    // Setup event listeners
+    if (window.ethereum) {
+      window.ethereum.on('accountsChanged', handleAccountsChanged);
+      window.ethereum.on('disconnect', disconnect);
+    }
 
     return () => {
-      window.ethereum.removeListener('accountsChanged', handleAccountsChanged);
-      window.ethereum.removeListener('chainChanged', handleChainChanged);
+      if (window.ethereum?.removeListener) {
+        window.ethereum.removeListener('accountsChanged', handleAccountsChanged);
+        window.ethereum.removeListener('disconnect', disconnect);
+      }
     };
-  }, [account, handleDisconnect]);
+  }, [initializeWallet]);
 
   return (
-    <WalletContext.Provider value={{
-      account,
-      isConnecting,
-      error,
-      connect,
-      disconnect,
-      signMessage
-    }}>
+    <WalletContext.Provider 
+      value={{
+        account,
+        isConnected,
+        isConnecting,
+        connect,
+        disconnect,
+        userProfile,
+        profileCID,
+        checkExistingProfile
+      }}
+    >
       {children}
     </WalletContext.Provider>
   );
 }
 
-export const useWallet = () => {
+export function useWallet() {
   const context = useContext(WalletContext);
-  if (!context) {
-    throw new Error('useWallet must be used within WalletProvider');
+  if (context === undefined) {
+    throw new Error('useWallet must be used within a WalletProvider');
   }
   return context;
-};
+}

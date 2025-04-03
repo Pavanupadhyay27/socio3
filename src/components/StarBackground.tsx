@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 
-const StarBackground = () => {
+export const StarBackground = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const scrollRef = useRef(0);
 
@@ -92,7 +92,7 @@ const StarBackground = () => {
   return (
     <canvas
       ref={canvasRef}
-      className="fixed inset-0 w-full h-full pointer-events-none opacity-40"
+      className="fixed inset-0 w-full h-full pointer-events-none"
       style={{ 
         willChange: 'transform',
         transform: 'translateZ(0)',

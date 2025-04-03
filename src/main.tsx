@@ -1,21 +1,19 @@
-import React, { Suspense } from 'react';
-import ReactDOM from 'react-dom/client';
-import { RouterProvider, createBrowserRouter } from 'react-router-dom';
+import React from 'react';
+import { createRoot } from 'react-dom/client';
+import { RouterProvider } from 'react-router-dom';
+import { router } from './App.routes';
 import { LoadingProvider } from './contexts/LoadingContext';
-import { LoadingOverlay } from './components/LoadingOverlay';
-import { routes } from './routes';
 import './index.css';
 
-const router = createBrowserRouter(routes, {
-  basename: '/',
-});
+const container = document.getElementById('root');
+if (!container) throw new Error('Root element not found');
 
-ReactDOM.createRoot(document.getElementById('root')!).render(
+const root = createRoot(container);
+
+root.render(
   <React.StrictMode>
     <LoadingProvider>
-      <Suspense fallback={<LoadingOverlay />}>
-        <RouterProvider router={router} />
-      </Suspense>
+      <RouterProvider router={router} />
     </LoadingProvider>
   </React.StrictMode>
 );

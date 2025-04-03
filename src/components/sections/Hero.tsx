@@ -31,13 +31,13 @@ export const Hero = () => {
     // Save to localStorage or your backend
     localStorage.setItem('userProfile', JSON.stringify(data));
     setShowRegistration(false);
-    // Navigate to dashboard or home
-    window.location.href = '/dashboard';
+    // Navigate to profile instead of dashboard
+    navigate('/profile');
   };
 
   return (
     <div>
-      <div className="relative min-h-screen flex items-center justify-center py-20 px-4">
+      <div id="home" className="relative min-h-screen flex items-center justify-center py-20 px-4">
         <div className="absolute inset-0 bg-gradient-to-b from-purple-900/20 via-black/0 to-black/80 z-0" />
         
         <div className="container mx-auto text-center relative z-10">
@@ -91,7 +91,7 @@ export const Hero = () => {
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.5, delay: 0.4 + i * 0.1 }}
-                  className="glass p-6 rounded-xl backdrop-blur-lg"
+                  className="bg-white/5 border border-white/10 p-6 rounded-xl backdrop-blur-lg hover:bg-white/10 transition-colors"
                 >
                   <feature.icon className="w-8 h-8 text-purple-400 mb-4" />
                   <h3 className="text-white font-semibold mb-2">{feature.title}</h3>

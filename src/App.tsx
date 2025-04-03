@@ -17,19 +17,21 @@ import {
   Twitter,
   Disc,
   Sun,
-  UserCircle,
   LogOut,
+  Settings,
 } from 'lucide-react';
-import { useNavigate, Outlet } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { ErrorBoundary, FallbackProps } from 'react-error-boundary';
 import FireIcon from './components/FireIcon';
 import { ProfileForm } from './components/ProfileForm';
 import StarBackground from './components/StarBackground';
-import { Hero } from './components/sections/Hero';
 import { LoadingOverlay } from './components/LoadingOverlay';
 import { useLoading } from './contexts/LoadingContext';
 import { WalletProvider, useWallet } from './contexts/WalletContext';
 import StarFooterBackground from './components/StarFooterBackground';
+import { getUserProfile } from './utils/storage';
+import { UserProfileButton } from './components/UserProfileButton';
+import { Outlet } from 'react-router-dom';
 
 const ErrorFallback: React.FC<FallbackProps> = ({ error, resetErrorBoundary }) => (
   <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-950 via-purple-950 to-pink-950">
@@ -307,13 +309,7 @@ const App: React.FC = () => {
                     <Bell className="w-6 h-6" />
                     <span className="absolute top-0 right-0 w-2 h-2 bg-red-500 rounded-full"></span>
                   </motion.button>
-                  <motion.button
-                    whileHover={{ scale: 1.05 }}
-                    onClick={handleProfileClick}
-                    className="relative text-white hover:bg-white/10 p-2 rounded-full"
-                  >
-                    <UserCircle className="w-6 h-6" />
-                  </motion.button>
+                  <UserProfileButton />
                   <WalletButton />
                   <button className="md:hidden text-white">
                     <Menu className="w-6 h-6" />
@@ -323,8 +319,7 @@ const App: React.FC = () => {
             </div>
           </nav>
 
-          <main className="flex-grow mt-16 pb-24"> {/* Added pb-24 for spacing */}
-            <Hero />
+          <main className="flex-grow mt-16 pb-24">
             <Outlet />
           </main>
 

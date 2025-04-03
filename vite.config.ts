@@ -6,22 +6,39 @@ export default defineConfig({
   plugins: [react()],
   resolve: {
     alias: {
-      '@': path.resolve(__dirname, './src')
-    },
-    extensions: ['.js', '.jsx', '.ts', '.tsx']
+      '@': '/src'
+    }
   },
   server: {
     port: 5173,
-    host: true
+    host: true,
+    open: true,
+    strictPort: false,
   },
   optimizeDeps: {
-    include: ['react', 'react-dom', 'react-router-dom', 'framer-motion', 'lucide-react'],
-    exclude: ['@web3-react/walletconnect-connector']
+    include: ['react', 'react-dom', 'ethers'],
+    esbuildOptions: {
+      target: 'es2020',
+    }
   },
   build: {
+    outDir: 'dist',
     sourcemap: true,
-    commonjsOptions: {
-      transformMixedEsModules: true
+    target: 'es2020',
+    minify: 'esbuild',
+    assetsDir: 'assets',
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          vendor: ['react', 'react-dom', 'react-router-dom'],
+          utils: ['ethers']
+        }
+      }
     }
+  },
+  preview: {
+    port: 5173,
+    host: true,
+    strictPort: true,
   }
 });

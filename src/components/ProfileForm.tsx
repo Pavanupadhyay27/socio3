@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { X } from 'lucide-react';
+import { X, Camera, Upload, UserCircle } from 'lucide-react';
+import { useWallet } from '../contexts/WalletContext';
 
 interface ProfileFormProps {
   onClose: () => void;
-  onSubmit: (data: { username: string; interests: string[]; profession: string }) => void;
+  onSubmit: (data: { username: string; interests: string[]; profession: string; avatar: string }) => void;
 }
 
 const INTEREST_OPTIONS = [
@@ -26,13 +27,15 @@ const PROFESSION_OPTIONS = [
 ];
 
 export const ProfileForm = ({ onClose, onSubmit }: ProfileFormProps) => {
+  const { account } = useWallet();
   const [username, setUsername] = useState('');
   const [interests, setInterests] = useState<string[]>([]);
   const [profession, setProfession] = useState('');
+  const [avatar, setAvatar] = useState<string>('');
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onSubmit({ username, interests, profession });
+    onSubmit({ username, interests, profession, avatar });
   };
 
   const toggleInterest = (interest: string) => {
@@ -41,6 +44,17 @@ export const ProfileForm = ({ onClose, onSubmit }: ProfileFormProps) => {
         ? prev.filter(i => i !== interest)
         : [...prev, interest]
     );
+  };
+
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setAvatar(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
   };
 
   return (
@@ -64,6 +78,41 @@ export const ProfileForm = ({ onClose, onSubmit }: ProfileFormProps) => {
         
         <h2 className="text-2xl font-bold text-white mb-6">Complete Your Profile</h2>
         
+        <div className="flex justify-center mb-6">
+          <div className="relative group">
+            <motion.div
+              className="w-24 h-24 rounded-full overflow-hidden bg-purple-500/20 flex items-center justify-center border-2 border-purple-500/50"
+              whileHover={{ scale: 1.05 }}
+            >
+              {avatar ? (
+                <img 
+                  src={avatar} 
+                  alt="Profile" 
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <UserCircle className="w-12 h-12 text-purple-300" />
+              )}
+            </motion.div>
+            <motion.button
+              type="button"
+              whileHover={{ scale: 1.1 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={() => document.getElementById('profile-avatar-upload')?.click()}
+              className="absolute bottom-0 right-0 p-2 bg-purple-600 rounded-full text-white shadow-lg hover:bg-purple-500 transition-colors"
+            >
+              <Upload className="w-4 h-4" />
+            </motion.button>
+            <input
+              id="profile-avatar-upload"
+              type="file"
+              accept="image/*"
+              onChange={handleImageUpload}
+              className="hidden"
+            />
+          </div>
+        </div>
+
         <form onSubmit={handleSubmit} className="space-y-6">
           <div>
             <label className="block text-white mb-2">Username</label>
