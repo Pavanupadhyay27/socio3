@@ -9,6 +9,7 @@ import AllPosts from './pages/AllPosts';
 import { CredentialPage } from './pages/CredentialPage';
 import { Login } from './pages/Login';
 import NotFound from './pages/NotFound';
+import { CreatePost } from './pages/CreatePost';
 
 const ErrorBoundary = () => (
   <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-900 to-black p-4">
@@ -38,17 +39,7 @@ export const router = createBrowserRouter([
     errorElement: <ErrorBoundary />
   },
   {
-    path: '/profile',
-    element: <Profile />,
-    errorElement: <ErrorBoundary />
-  },
-  {
-    path: '/profile/edit',
-    element: <EditProfileForm />,
-    errorElement: <ErrorBoundary />
-  },
-  {
-    path: '/posts/*',
+    path: '/posts',
     element: <App />,
     errorElement: <ErrorBoundary />,
     children: [
@@ -58,8 +49,34 @@ export const router = createBrowserRouter([
       },
       {
         path: 'create',
-        element: <CreateContent />
+        element: <CreateContent /> 
       }
     ]
+  },
+  {
+    path: 'profile',
+    element: <Profile />
+  },
+  {
+    path: 'profile/edit',
+    element: <EditProfileForm />
+  },
+  {
+    path: '/create-post',
+    element: <CreatePost />
+  },
+  {
+    path: '/credential',
+    element: <CredentialPage />
+  },
+  {
+    path: '/create-post',
+    element: <CreateContent />
+  },
+  {
+    path: '/profile/edit',
+    element: <EditProfileForm />
   }
-]);
+], {
+  basename: '/' // Explicitly set the base URL
+});

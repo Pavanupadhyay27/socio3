@@ -2,16 +2,29 @@ export interface Post {
   id: string;
   title: string;
   content: string;
-  type: 'text' | 'media' | 'link' | 'poll';
-  tags: string[];
+  type: string;
   authorAddress: string;
-  media?: { url: string | File; type: string }[];
-  linkUrl?: string;
+  authorName: string;
+  authorProfilePic?: string;
+  tags: string[];
   community?: string;
-  votes: { up: string[]; down: string[] };
-  comments: any[];
   createdAt: string;
   updatedAt: string;
+  votes: {
+    up: string[];
+    down: string[];
+  };
+  comments: {
+    id: string;
+    text: string;
+    authorAddress: string;
+    authorName: string;
+    createdAt: string;
+  }[];
+  media?: {
+    url: string;
+    type: string;
+  }[];
 }
 
 const POSTS_KEY = 'hashdit_posts';
@@ -35,9 +48,21 @@ export const savePost = (post: Post) => {
     const posts = getPosts();
     posts.unshift(post);
     localStorage.setItem('hashdit_posts', JSON.stringify(posts));
-    return true;
+    return post.id;
   } catch (error) {
     console.error('Error saving post:', error);
+    throw error;
+  }
+};
+
+export const deletePost = (postId: string) => {
+  try {
+    const posts = getPosts();
+    const updatedPosts = posts.filter(post => post.id !== postId);
+    localStorage.setItem(POSTS_KEY, JSON.stringify(updatedPosts));
+    return true;
+  } catch (error) {
+    console.error('Error deleting post:', error);
     return false;
   }
 };

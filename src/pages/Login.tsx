@@ -26,6 +26,12 @@ export function Login() {
     }
   }, [account, userProfile, isConnected, navigate, location]);
 
+  useEffect(() => {
+    if (account && userProfile) {
+      navigate('/posts');
+    }
+  }, [account, userProfile, navigate]);
+
   const handleProfileSubmit = async (data: any) => {
     if (!account) return;
     try {

@@ -4,7 +4,8 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        sans: ['Space Grotesk', 'sans-serif'],
+        sans: ['Inter', 'sans-serif'],
+        mono: ['Fira Code', 'Roboto Mono', 'monospace'],
         orbitron: ['Orbitron', 'sans-serif'],
       },
       animation: {

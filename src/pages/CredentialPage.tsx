@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { Shield } from 'lucide-react';
@@ -7,26 +7,65 @@ import { ConnectWallet } from '../components/ConnectWallet';
 import { RegistrationForm } from '../components/RegistrationForm';
 import type { RegistrationData } from '../components/RegistrationForm';
 import StarBackground from '../components/StarBackground';
+import { ipfsStorage } from '../services/ipfsStorage'; // Add this import
 
 export const CredentialPage = () => {
   const navigate = useNavigate();
   const { account, userProfile } = useWallet();
-
-  const handleProfileSubmit = async (data: RegistrationData) => {
-    try {
-      localStorage.setItem('userProfile', JSON.stringify({ ...data, walletAddress: account }));
-      navigate('/posts');
-    } catch (error) {
-      console.error('Failed to save profile:', error);
-      alert('Failed to create profile. Please try again.');
-    }
-  };
+  const [showRegistration, setShowRegistration] = useState(false);
 
   useEffect(() => {
     if (account && userProfile) {
       navigate('/posts');
+    } else if (account && !userProfile) {
+      setShowRegistration(true);
     }
   }, [account, userProfile, navigate]);
+
+  const handleProfileSubmit = async (data: RegistrationData) => {
+    try {
+      if (!account) {
+        throw new Error('No wallet connected');
+      }
+
+      // First save to IPFS
+      const ipfsCid = await ipfsStorage.saveProfile({
+        ...data,
+        walletAddress: account,
+        createdAt: new Date().toISOString()
+      });
+
+      if (!ipfsCid) {
+        throw new Error('Failed to upload profile to IPFS');
+      }
+
+      // Create complete profile data
+      const profileData = {
+        ...data,
+        walletAddress: account,
+        ipfsCid,
+        createdAt: new Date().toISOString()
+      };
+
+      try {
+        // Save to local storage
+        localStorage.setItem(`userProfile_${account.toLowerCase()}`, JSON.stringify(profileData));
+        localStorage.setItem(`profile_cid_${account.toLowerCase()}`, ipfsCid);
+        
+        // Dispatch profile updated event
+        window.dispatchEvent(new CustomEvent('profileUpdated', { detail: profileData }));
+        
+        // Navigate only after successful save
+        navigate('/posts');
+      } catch (storageError) {
+        console.error('Local storage error:', storageError);
+        throw new Error('Failed to save profile data locally');
+      }
+    } catch (error: any) {
+      console.error('Profile creation failed:', error);
+      alert(error.message || 'Failed to create profile. Please try again.');
+    }
+  };
 
   return (
     <div className="relative min-h-screen flex items-center justify-center p-2 bg-black">
@@ -44,39 +83,31 @@ export const CredentialPage = () => {
           </p>
         </div>
 
-        {/* Right Side - Connect Section */}
+        {/* Right Side - Connect/Registration Section */}
         <div className="flex flex-col">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             className="bg-black/50 backdrop-blur-xl p-8 rounded-xl border border-white/10"
           >
-            <div className="text-center mb-6">
-              <Shield className="w-12 h-12 mx-auto text-purple-500 mb-4 animate-pulse" />
-              <h2 className="text-xl font-semibold text-white mb-2">
-                Welcome to hashdit
-              </h2>
-              <p className="text-gray-400 mb-8">
-                Connect your wallet to start your journey
-              </p>
-            </div>
-
-            <div className="flex flex-col items-center gap-6">
-              <ConnectWallet />
-              
-              {account && !userProfile && (
-                <div className="scale-90 origin-top">
-                  <RegistrationForm onSubmit={handleProfileSubmit} onClose={() => {}} />
+            {!account ? (
+              <>
+                <div className="text-center mb-6">
+                  <Shield className="w-12 h-12 mx-auto text-purple-500 mb-4 animate-pulse" />
+                  <h2 className="text-xl font-semibold text-white mb-2">
+                    Welcome to hashdit
+                  </h2>
+                  <p className="text-gray-400 mb-8">
+                    Connect your wallet to start your journey
+                  </p>
                 </div>
-              )}
-            </div>
+                <ConnectWallet />
+              </>
+            ) : showRegistration && !userProfile ? (
+              <RegistrationForm onSubmit={handleProfileSubmit} onClose={() => {}} />
+            ) : null}
           </motion.div>
         </div>
-      </div>
-
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute -top-1/2 -right-1/2 w-full h-full bg-purple-500/10 rounded-full blur-[120px]" />
-        <div className="absolute -bottom-1/2 -left-1/2 w-full h-full bg-pink-500/10 rounded-full blur-[120px]" />
       </div>
     </div>
   );

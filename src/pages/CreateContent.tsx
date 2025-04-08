@@ -1,349 +1,469 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { Upload, Image, Film, FileText, Link2, Loader, Hash, ArrowLeft, X } from 'lucide-react';
-import type { ContentType } from '../types/database.types';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { 
+  Upload, Image, Film, FileText, Hash, X, Link2, Eye, 
+  Bold, Italic, ChevronDown, BarChart2, AlertTriangle, 
+  AlertCircle, Save
+} from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { savePost } from '../utils/postStorage';
-import { getUserProfile } from '../utils/userService';
 import { useWallet } from '../contexts/WalletContext';
 
-interface CreateContentProps {
-  onClose?: () => void;
-}
-
-export const CreateContent: React.FC<CreateContentProps> = ({ onClose }) => {
+export const CreateContent: React.FC = () => {
   const navigate = useNavigate();
-  const location = useLocation();
-  const { account } = useWallet();
+  const { account, userProfile } = useWallet();
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [uploading, setUploading] = useState(false);
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const [tags, setTags] = useState<string[]>([]);
-  const [currentTag, setCurrentTag] = useState('');
-  const [isLoading, setIsLoading] = useState(true);
-
+  const [activeTab, setActiveTab] = useState('text');
   const [content, setContent] = useState({
     title: '',
     description: '',
-    contentType: 'text' as ContentType,
+    contentType: 'text',
     file: null as File | null,
     community: ''
   });
+  const [tags, setTags] = useState<string[]>([]);
+  const [currentTag, setCurrentTag] = useState('');
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [isPreview, setIsPreview] = useState(false);
+  const [selectedCommunity, setSelectedCommunity] = useState('');
+  const [showCommunityDropdown, setShowCommunityDropdown] = useState(false);
+  const [isNsfw, setIsNsfw] = useState(false);
+  const [isSpoiler, setIsSpoiler] = useState(false);
+  const [pollOptions, setPollOptions] = useState(['', '']);
+  const [draftSaved, setDraftSaved] = useState(false);
 
-  useEffect(() => {
-    const checkProfile = async () => {
-      if (!account) {
-        navigate('/', { replace: true });
-        return;
-      }
+  const communities = [
+    'Web3', 'DeFi', 'NFTs', 'Gaming', 'Crypto', 'Technology'
+  ];
 
-      try {
-        const profile = await getUserProfile(account);
-        if (!profile) {
-          navigate('/setup', { replace: true });
-          return;
-        }
-        setIsLoading(false);
-      } catch (error) {
-        console.error('Error checking profile:', error);
-        alert('Failed to load profile. Please try again.');
-        navigate('/', { replace: true });
-      }
-    };
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+  };
 
-    // Re-run check when location state changes
-    checkProfile();
-  }, [account, navigate, location.state]);
-
-  if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-white flex items-center gap-2">
-          <Loader className="w-5 h-5 animate-spin" />
-          <span>Loading...</span>
-        </div>
-      </div>
-    );
-  }
-
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setContent(prev => ({
-        ...prev,
-        file,
-        contentType: file.type.startsWith('image/') ? 'image' : 'video'
-      }));
-
-      // Create preview URL
-      const url = URL.createObjectURL(file);
-      setPreviewUrl(url);
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const file = e.dataTransfer.files[0];
+    if (file && (
+      (activeTab === 'image' && file.type.startsWith('image/')) ||
+      (activeTab === 'video' && file.type.startsWith('video/'))
+    )) {
+      setContent(prev => ({ ...prev, file }));
+      setPreviewUrl(URL.createObjectURL(file));
     }
   };
 
-  const handleAddTag = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' || e.key === ',') {
-      e.preventDefault();
-      if (currentTag.trim() && !tags.includes(currentTag.trim()) && tags.length < 5) {
-        setTags([...tags, currentTag.trim()]);
-        setCurrentTag('');
-      }
-    }
+  const saveDraft = () => {
+    localStorage.setItem('post_draft', JSON.stringify({
+      content,
+      tags,
+      selectedCommunity,
+      isNsfw,
+      isSpoiler,
+      pollOptions
+    }));
+    setDraftSaved(true);
+    setTimeout(() => setDraftSaved(false), 2000);
   };
 
-  const removeTag = (tagToRemove: string) => {
-    setTags(tags.filter(tag => tag !== tagToRemove));
+  const formatText = (format: 'bold' | 'italic' | 'link') => {
+    const textarea = document.getElementById('content-textarea') as HTMLTextAreaElement;
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const selectedText = content.description.substring(start, end);
+    
+    let formattedText = '';
+    switch (format) {
+      case 'bold':
+        formattedText = `**${selectedText}**`;
+        break;
+      case 'italic':
+        formattedText = `*${selectedText}*`;
+        break;
+      case 'link':
+        formattedText = `[${selectedText}](url)`;
+        break;
+    }
+    
+    setContent(prev => ({
+      ...prev,
+      description: content.description.substring(0, start) + 
+                  formattedText + 
+                  content.description.substring(end)
+    }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!account) {
-      alert('Please connect your wallet');
+    if (!content.title || !content.description) {
+      alert('Please fill in all required fields');
       return;
     }
 
     try {
       setUploading(true);
-      const userProfile = await getUserProfile(account);
-      
-      if (!userProfile) {
-        navigate('/setup');
-        return;
-      }
-
       const postData = {
+        id: `post_${Date.now()}`,
         title: content.title,
         content: content.description,
-        type: content.contentType,
-        authorAddress: account,
-        authorName: userProfile.username,
-        authorProfilePic: userProfile.avatar,
+        authorAddress: account || 'anonymous',
+        authorName: userProfile?.username || 'Anonymous',
+        authorProfilePic: userProfile?.avatar,
         tags,
         community: content.community,
         createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
         votes: { up: [], down: [] },
-        comments: []
+        comments: [],
+        media: previewUrl ? [{ url: previewUrl, type: content.contentType }] : []
       };
 
       await savePost(postData);
       navigate('/posts');
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error creating post:', error);
-      alert('Failed to create post: ' + error.message);
+      alert('Failed to create post');
     } finally {
       setUploading(false);
     }
   };
 
-  const contentTypes = [
-    { type: 'text', icon: FileText, label: 'Text' },
-    { type: 'image', icon: Image, label: 'Image' },
-    { type: 'video', icon: Film, label: 'Video' },
-    { type: 'link', icon: Link2, label: 'Link' }
-  ];
-
   return (
-    <div className="w-full max-w-3xl mx-auto">
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        exit={{ opacity: 0, y: -20 }}
-        className="bg-black/60 backdrop-blur-xl rounded-2xl border border-white/10 p-6 w-full"
-      >
-        <div className="flex items-center justify-between mb-6">
-          <h1 className="text-2xl font-bold text-white">Create New Content</h1>
-          {onClose ? (
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={onClose}
-              className="flex items-center gap-2 text-white/70 hover:text-white"
-            >
-              <X size={20} />
-              <span>Close</span>
-            </motion.button>
-          ) : (
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={() => navigate(-1)}
-              className="flex items-center gap-2 text-white/70 hover:text-white"
-            >
-              <ArrowLeft size={20} />
-              <span>Back</span>
-            </motion.button>
-          )}
-        </div>
-        
-        <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Title Input with character count */}
-          <div className="relative">
-            <label className="block text-white mb-2 font-medium">Title</label>
-            <input
-              type="text"
-              value={content.title}
-              onChange={e => setContent(prev => ({ ...prev, title: e.target.value }))}
-              maxLength={100}
-              className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white 
-                focus:border-purple-500/50 focus:ring-1 focus:ring-purple-500/50 transition-all"
-              placeholder="Enter a title for your content"
-              required
-            />
-            <span className="absolute right-2 bottom-2 text-xs text-gray-400">
-              {content.title.length}/100
-            </span>
+    <div className="min-h-screen p-4 bg-black">
+      <div className="max-w-3xl mx-auto">
+        <div className="bg-black/50 backdrop-blur-xl rounded-xl border border-white/10 p-6">
+          {/* Header */}
+          <div className="flex items-center justify-between mb-6">
+            <h1 className="text-2xl font-bold text-white">Create a Post</h1>
+            <button onClick={() => navigate(-1)} className="text-gray-400 hover:text-white">
+              <X size={24} />
+            </button>
           </div>
 
-          {/* Content Type Selection with improved styling */}
-          <div>
-            <label className="block text-white mb-2 font-medium">Content Type</label>
-            <div className="grid grid-cols-2 gap-3">
-              {contentTypes.map(({ type, icon: Icon, label }) => (
-                <motion.button
+          {/* Post Form */}
+          <form onSubmit={handleSubmit} className="space-y-6">
+            {/* Community Selection */}
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setShowCommunityDropdown(!showCommunityDropdown)}
+                className="w-full flex items-center justify-between px-4 py-3 bg-white/5 
+                  border border-white/10 rounded-xl text-white"
+              >
+                {selectedCommunity || 'Choose a community'}
+                <ChevronDown size={20} />
+              </button>
+              
+              {showCommunityDropdown && (
+                <div className="absolute z-10 w-full mt-2 bg-black border border-white/10 
+                  rounded-xl shadow-xl">
+                  {communities.map(community => (
+                    <button
+                      key={community}
+                      type="button"
+                      onClick={() => {
+                        setSelectedCommunity(community);
+                        setShowCommunityDropdown(false);
+                      }}
+                      className="w-full px-4 py-3 text-left text-white hover:bg-white/5"
+                    >
+                      {community}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Post Type Tabs */}
+            <div className="flex gap-2 border-b border-white/10">
+              {[
+                { type: 'text', icon: FileText, label: 'Post' },
+                { type: 'image', icon: Image, label: 'Image' },
+                { type: 'video', icon: Film, label: 'Video' }
+              ].map(({ type, icon: Icon, label }) => (
+                <button
                   key={type}
                   type="button"
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                  onClick={() => setContent(prev => ({ ...prev, contentType: type as ContentType }))}
-                  className={`flex items-center justify-center gap-2 p-3 rounded-xl border backdrop-blur-sm
-                    transition-all duration-200 ${
-                    content.contentType === type
-                      ? 'bg-purple-500/20 border-purple-500/50 shadow-lg shadow-purple-500/20'
-                      : 'bg-white/5 border-white/10 hover:bg-white/10'
+                  onClick={() => {
+                    setActiveTab(type);
+                    setContent(prev => ({ ...prev, contentType: type }));
+                  }}
+                  className={`flex items-center gap-2 px-4 py-3 text-sm font-medium transition-colors ${
+                    activeTab === type
+                      ? 'text-purple-500 border-b-2 border-purple-500'
+                      : 'text-gray-400 hover:text-white'
                   }`}
                 >
-                  <Icon className="w-4 h-4 text-white" />
-                  <span className="text-white text-sm">{label}</span>
-                </motion.button>
+                  <Icon size={20} />
+                  {label}
+                </button>
               ))}
             </div>
-          </div>
 
-          {/* Community Input */}
-          <div>
-            <label className="block text-white mb-2 font-medium">Community (Optional)</label>
+            {/* Title Input */}
             <input
               type="text"
-              value={content.community}
-              onChange={e => setContent(prev => ({ ...prev, community: e.target.value }))}
-              className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white 
-                focus:border-purple-500/50 focus:ring-1 focus:ring-purple-500/50 transition-all"
-              placeholder="Enter community name"
-            />
-          </div>
-
-          {/* Tags Input */}
-          <div>
-            <label className="block text-white mb-2 font-medium">Tags (Max 5)</label>
-            <div className="flex flex-wrap gap-2 mb-2">
-              {tags.map(tag => (
-                <motion.span
-                  key={tag}
-                  initial={{ scale: 0.8 }}
-                  animate={{ scale: 1 }}
-                  className="flex items-center gap-1 px-3 py-1 bg-purple-500/20 rounded-full 
-                    text-purple-300 text-sm border border-purple-500/30"
-                >
-                  <Hash size={14} />
-                  {tag}
-                  <button
-                    type="button"
-                    onClick={() => removeTag(tag)}
-                    className="ml-1 hover:text-purple-200"
-                  >
-                    ×
-                  </button>
-                </motion.span>
-              ))}
-            </div>
-            <input
-              type="text"
-              value={currentTag}
-              onChange={e => setCurrentTag(e.target.value)}
-              onKeyDown={handleAddTag}
-              placeholder="Type tag and press Enter"
-              className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white 
-                focus:border-purple-500/50 focus:ring-1 focus:ring-purple-500/50 transition-all"
-              disabled={tags.length >= 5}
-            />
-          </div>
-
-          {/* File Upload Area */}
-          {(content.contentType === 'image' || content.contentType === 'video') && (
-            <div className="relative">
-              <input
-                ref={fileInputRef}
-                type="file"
-                onChange={handleFileSelect}
-                accept={content.contentType === 'image' ? 'image/*' : 'video/*'}
-                className="hidden"
-              />
-              
-              <motion.div
-                whileHover={{ scale: 1.01 }}
-                onClick={() => fileInputRef.current?.click()}
-                className="cursor-pointer border-2 border-dashed border-white/20 rounded-xl p-6 text-center hover:bg-white/5"
-              >
-                {previewUrl ? (
-                  content.contentType === 'image' ? (
-                    <img src={previewUrl} alt="Preview" className="max-h-48 mx-auto rounded-lg" />
-                  ) : (
-                    <video src={previewUrl} controls className="max-h-48 mx-auto rounded-lg" />
-                  )
-                ) : (
-                  <div className="space-y-3">
-                    <Upload className="w-10 h-10 text-white/50 mx-auto" />
-                    <p className="text-white/70 text-sm">Click to upload {content.contentType}</p>
-                  </div>
-                )}
-              </motion.div>
-            </div>
-          )}
-
-          {/* Description/Content Input with character count */}
-          <div className="relative">
-            <label className="block text-white mb-2 font-medium">Description</label>
-            <textarea
-              value={content.description}
-              onChange={e => setContent(prev => ({ ...prev, description: e.target.value }))}
-              maxLength={2000}
-              className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white 
-                min-h-[150px] focus:border-purple-500/50 focus:ring-1 focus:ring-purple-500/50 
-                transition-all resize-none"
-              placeholder="Enter your content or description"
+              placeholder="Title"
+              value={content.title}
+              onChange={e => setContent(prev => ({ ...prev, title: e.target.value }))}
+              className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white"
               required
             />
-            <span className="absolute right-2 bottom-2 text-xs text-gray-400">
-              {content.description.length}/2000
-            </span>
-          </div>
 
-          {/* Submit Button */}
-          <motion.button
-            type="submit"
-            disabled={uploading}
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-            className={`w-full py-3 rounded-xl text-white font-medium shadow-xl ${
-              uploading
-                ? 'bg-purple-500/50 cursor-not-allowed'
-                : 'bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500'
-            }`}
-          >
-            {uploading ? (
-              <div className="flex items-center justify-center gap-2">
-                <Loader className="w-5 h-5 animate-spin" />
-                <span>Creating Post...</span>
+            {/* Rich Text Controls */}
+            <div className="flex gap-2 p-2 bg-white/5 rounded-lg">
+              <button
+                type="button"
+                onClick={() => formatText('bold')}
+                className="p-2 text-white hover:bg-white/10 rounded"
+              >
+                <Bold size={20} />
+              </button>
+              <button
+                type="button"
+                onClick={() => formatText('italic')}
+                className="p-2 text-white hover:bg-white/10 rounded"
+              >
+                <Italic size={20} />
+              </button>
+              <button
+                type="button"
+                onClick={() => formatText('link')}
+                className="p-2 text-white hover:bg-white/10 rounded"
+              >
+                <Link2 size={20} />
+              </button>
+            </div>
+
+            {/* Content Area with Preview Toggle */}
+            <div className="relative">
+              <div className="flex justify-end mb-2">
+                <button
+                  type="button"
+                  onClick={() => setIsPreview(!isPreview)}
+                  className="flex items-center gap-2 px-3 py-1.5 text-sm text-white 
+                    bg-white/5 rounded-lg hover:bg-white/10"
+                >
+                  <Eye size={16} />
+                  {isPreview ? 'Edit' : 'Preview'}
+                </button>
               </div>
-            ) : (
-              'Create Post'
+
+              {isPreview ? (
+                <div className="prose prose-invert max-w-none p-4 bg-white/5 rounded-xl">
+                  {/* Add markdown rendering here */}
+                  {content.description}
+                </div>
+              ) : (
+                <textarea
+                  id="content-textarea"
+                  value={content.description}
+                  onChange={e => setContent(prev => ({ ...prev, description: e.target.value }))}
+                  className="w-full min-h-[200px] bg-white/5 border border-white/10 rounded-xl 
+                    px-4 py-3 text-white resize-y"
+                  placeholder="Text (optional)"
+                />
+              )}
+            </div>
+
+            {/* Tags Input */}
+            <div className="space-y-2">
+              <div className="flex flex-wrap gap-2">
+                {tags.map(tag => (
+                  <span key={tag} className="flex items-center gap-1 px-2 py-1 bg-purple-500/20 
+                    text-purple-300 text-sm rounded-lg">
+                    <Hash size={14} />
+                    {tag}
+                    <button type="button" onClick={() => setTags(tags.filter(t => t !== tag))}>
+                      <X size={14} />
+                    </button>
+                  </span>
+                ))}
+              </div>
+              <input
+                type="text"
+                value={currentTag}
+                onChange={e => setCurrentTag(e.target.value)}
+                onKeyDown={e => {
+                  if (e.key === 'Enter' && currentTag.trim()) {
+                    e.preventDefault();
+                    setTags([...tags, currentTag.trim()]);
+                    setCurrentTag('');
+                  }
+                }}
+                placeholder="Add up to 5 tags..."
+                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white"
+                disabled={tags.length >= 5}
+              />
+            </div>
+
+            {/* Poll Creation */}
+            {activeTab === 'text' && (
+              <button
+                type="button"
+                onClick={() => setActiveTab('poll')}
+                className="flex items-center gap-2 px-4 py-2 text-white bg-white/5 
+                  rounded-lg hover:bg-white/10"
+              >
+                <BarChart2 size={20} />
+                Add Poll
+              </button>
             )}
-          </motion.button>
-        </form>
-      </motion.div>
+
+            {activeTab === 'poll' && (
+              <div className="space-y-3">
+                {pollOptions.map((option, index) => (
+                  <div key={index} className="flex gap-2">
+                    <input
+                      type="text"
+                      value={option}
+                      onChange={e => {
+                        const newOptions = [...pollOptions];
+                        newOptions[index] = e.target.value;
+                        setPollOptions(newOptions);
+                      }}
+                      placeholder={`Option ${index + 1}`}
+                      className="flex-1 px-4 py-2 bg-white/5 border border-white/10 
+                        rounded-lg text-white"
+                    />
+                    {pollOptions.length > 2 && (
+                      <button
+                        type="button"
+                        onClick={() => setPollOptions(opts => 
+                          opts.filter((_, i) => i !== index)
+                        )}
+                        className="p-2 text-red-400 hover:bg-red-400/10 rounded-lg"
+                      >
+                        <X size={20} />
+                      </button>
+                    )}
+                  </div>
+                ))}
+                {pollOptions.length < 6 && (
+                  <button
+                    type="button"
+                    onClick={() => setPollOptions([...pollOptions, ''])}
+                    className="w-full px-4 py-2 text-purple-400 border border-dashed 
+                      border-purple-400/50 rounded-lg hover:bg-purple-400/10"
+                  >
+                    Add Option
+                  </button>
+                )}
+              </div>
+            )}
+
+            {/* File Upload Area */}
+            {(activeTab === 'image' || activeTab === 'video') && (
+              <div 
+                className="border-2 border-dashed border-white/10 rounded-xl p-8 text-center"
+                onDragOver={handleDragOver}
+                onDrop={handleDrop}
+              >
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept={activeTab === 'image' ? 'image/*' : 'video/*'}
+                  onChange={e => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      setContent(prev => ({ ...prev, file }));
+                      setPreviewUrl(URL.createObjectURL(file));
+                    }
+                  }}
+                  className="hidden"
+                />
+                {previewUrl ? (
+                  <div className="relative">
+                    {activeTab === 'image' ? (
+                      <img src={previewUrl} alt="Preview" className="max-h-96 mx-auto rounded-lg" />
+                    ) : (
+                      <video src={previewUrl} controls className="max-h-96 mx-auto rounded-lg" />
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setPreviewUrl(null);
+                        setContent(prev => ({ ...prev, file: null }));
+                      }}
+                      className="absolute top-2 right-2 p-1 bg-black/50 rounded-full text-white"
+                    >
+                      <X size={20} />
+                    </button>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    <Upload className="w-12 h-12 text-purple-500 mx-auto" />
+                    <p className="text-white">Drag and drop files or</p>
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      className="px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600"
+                    >
+                      Browse Files
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Post Options */}
+            <div className="flex flex-wrap gap-4">
+              <label className="flex items-center gap-2 text-white">
+                <input
+                  type="checkbox"
+                  checked={isNsfw}
+                  onChange={e => setIsNsfw(e.target.checked)}
+                  className="rounded border-white/10 bg-white/5"
+                />
+                <AlertTriangle size={16} />
+                NSFW
+              </label>
+              
+              <label className="flex items-center gap-2 text-white">
+                <input
+                  type="checkbox"
+                  checked={isSpoiler}
+                  onChange={e => setIsSpoiler(e.target.checked)}
+                  className="rounded border-white/10 bg-white/5"
+                />
+                <AlertCircle size={16} />
+                Spoiler
+              </label>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex justify-between items-center">
+              <button
+                type="button"
+                onClick={saveDraft}
+                className="flex items-center gap-2 px-4 py-2 text-white hover:bg-white/5 rounded-lg"
+              >
+                <Save size={20} />
+                {draftSaved ? 'Saved!' : 'Save Draft'}
+              </button>
+
+              <div className="flex gap-4">
+                <button
+                  type="button"
+                  onClick={() => navigate(-1)}
+                  className="px-4 py-2 text-white hover:bg-white/5 rounded-lg"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={uploading}
+                  className="px-6 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 
+                    disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                >
+                  {uploading ? 'Posting...' : 'Post'}
+                </button>
+              </div>
+            </div>
+          </form>
+        </div>
+      </div>
     </div>
   );
-}
-
-export default CreateContent;
+};

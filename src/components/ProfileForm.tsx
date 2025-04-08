@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { X, Camera, Upload, UserCircle } from 'lucide-react';
+import { X, Camera, Upload, UserCircle, ArrowLeft } from 'lucide-react';
 import { useWallet } from '../contexts/WalletContext';
+import { useNavigate } from 'react-router-dom';
 
 interface ProfileFormProps {
   onClose: () => void;
@@ -28,14 +29,16 @@ const PROFESSION_OPTIONS = [
 
 export const ProfileForm = ({ onClose, onSubmit }: ProfileFormProps) => {
   const { account } = useWallet();
+  const navigate = useNavigate();
   const [username, setUsername] = useState('');
   const [interests, setInterests] = useState<string[]>([]);
   const [profession, setProfession] = useState('');
   const [avatar, setAvatar] = useState<string>('');
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    onSubmit({ username, interests, profession, avatar });
+    await onSubmit({ username, interests, profession, avatar });
+    navigate('/posts/all');
   };
 
   const toggleInterest = (interest: string) => {
@@ -175,6 +178,14 @@ export const ProfileForm = ({ onClose, onSubmit }: ProfileFormProps) => {
             Save Profile
           </motion.button>
         </form>
+        <motion.button
+          onClick={() => navigate('/posts/all')}
+          className="absolute top-4 left-4 p-2.5 bg-white/10 rounded-full backdrop-blur-sm hover:bg-white/20 
+            border border-white/20 shadow-lg flex items-center space-x-2 group"
+        >
+          <ArrowLeft className="w-4 h-4 text-white group-hover:-translate-x-0.5 transition-transform" />
+          <span className="text-white text-sm pr-1">Home</span>
+        </motion.button>
       </motion.div>
     </motion.div>
   );

@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { ipfsStorage } from '../services/ipfsStorage';
+import { getUserProfile } from '../utils/storage';
 
 interface WalletContextType {
   account: string | null;
@@ -37,14 +38,11 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
 
   const checkExistingProfile = async (address: string) => {
     try {
-      const savedCID = localStorage.getItem(`profile_cid_${address.toLowerCase()}`);
-      if (savedCID) {
-        const profile = await ipfsStorage.getProfile(savedCID);
-        if (profile) {
-          setProfileCID(savedCID);
-          setUserProfile(profile);
-          return true;
-        }
+      const localProfile = localStorage.getItem(`userProfile_${address.toLowerCase()}`);
+      if (localProfile) {
+        const profile = JSON.parse(localProfile);
+        setUserProfile(profile);
+        return true;
       }
       return false;
     } catch (error) {
@@ -53,24 +51,36 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const loadExistingProfile = async (address: string) => {
+  const loadExistingProfile = useCallback(async () => {
     try {
-      const profile = getUserProfile(address);
-      if (profile) {
-        setUserProfile(profile);
-        return true;
-      }
-      return false;
+      if (!account) return null;
+      const profile = getUserProfile(account);
+      setUserProfile(profile);
+      return profile;
     } catch (error) {
       console.error('Error loading existing profile:', error);
-      return false;
+      return null;
     }
-  };
+  }, [account]);
 
   const initializeWallet = useCallback(() => {
     // Skip auto initialization completely
     return;
   }, []);
+
+  useEffect(() => {
+    // Remove auto-connection logic
+    // Only clear state if there's no stored account
+    if (!localStorage.getItem('lastConnectedAccount')) {
+      resetState();
+    }
+  }, []);
+
+  useEffect(() => {
+    // Clear any stored wallet data on initial load
+    localStorage.removeItem('lastConnectedAccount');
+    resetState();
+  }, [resetState]);
 
   const connect = async () => {
     if (!window.ethereum) {
@@ -81,30 +91,27 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
     setIsConnecting(true);
 
     try {
-      // Force MetaMask to show permission prompt
-      await window.ethereum.request({
-        method: 'wallet_requestPermissions',
-        params: [{ eth_accounts: {} }]
-      });
-
       const accounts = await window.ethereum.request({
         method: 'eth_requestAccounts'
       });
 
-      if (accounts?.[0]) {
-        setAccount(accounts[0]);
+      if (accounts.length > 0) {
+        const currentAccount = accounts[0];
+        setAccount(currentAccount);
         setIsConnected(true);
-        localStorage.setItem('lastConnectedAccount', accounts[0]);
         
-        // Try to load existing profile
-        const hasProfile = await loadExistingProfile(accounts[0]);
-        if (!hasProfile) {
-          await checkExistingProfile(accounts[0]);
+        // Check for existing profile
+        const hasProfile = await checkExistingProfile(currentAccount);
+        if (hasProfile) {
+          setUserProfile(await getUserProfile(currentAccount));
         }
+        return hasProfile;
       }
-    } catch (error: any) {
-      console.error('Connect error:', error);
+      return false;
+    } catch (error) {
+      console.error('Connection error:', error);
       resetState();
+      return false;
     } finally {
       setIsConnecting(false);
     }
@@ -133,19 +140,6 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
       console.error('Disconnect error:', error);
     }
   };
-
-  useEffect(() => {
-    // Try to restore last connected account on mount
-    const lastAccount = localStorage.getItem('lastConnectedAccount');
-    if (lastAccount && window.ethereum) {
-      loadExistingProfile(lastAccount).then(hasProfile => {
-        if (hasProfile) {
-          setAccount(lastAccount);
-          setIsConnected(true);
-        }
-      });
-    }
-  }, []);
 
   useEffect(() => {
     // Only set up event listeners, no auto-connection

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { X, Camera, Upload } from 'lucide-react';
+import { ipfsStorage } from '../services/ipfsStorage';
 
 interface RegistrationFormProps {
   onClose: () => void;
@@ -39,6 +40,8 @@ export function RegistrationForm({ onClose, onSubmit }: RegistrationFormProps) {
     profession: '',
     socialLinks: {}
   });
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState('');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -47,6 +50,9 @@ export function RegistrationForm({ onClose, onSubmit }: RegistrationFormProps) {
       alert('Please fill in all required fields');
       return;
     }
+
+    setIsSubmitting(true);
+    setUploadProgress('Preparing profile data...');
 
     try {
       const accounts = await window.ethereum?.request({ 
@@ -57,25 +63,25 @@ export function RegistrationForm({ onClose, onSubmit }: RegistrationFormProps) {
         throw new Error('Please connect your wallet first');
       }
 
-      // Submit form data and let parent handle navigation
-      await onSubmit({
-        ...formData,
-        walletAddress: accounts[0],
-        createdAt: new Date().toISOString()
-      });
+      setUploadProgress('Uploading to IPFS...');
+      await onSubmit(formData);
     } catch (error: any) {
       console.error('Registration error:', error);
-      if (error.code === 4001) {
-        alert('Please accept the wallet connection request');
-      } else {
-        alert(error.message || 'Failed to register. Please try again.');
-      }
+      alert(error.message || 'Failed to save profile. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+      setUploadProgress('');
     }
   };
 
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      if (file.size > 5 * 1024 * 1024) { // 5MB limit
+        alert('Image size should be less than 5MB');
+        return;
+      }
+
       const reader = new FileReader();
       reader.onloadend = () => {
         const result = reader.result as string;
@@ -242,16 +248,21 @@ export function RegistrationForm({ onClose, onSubmit }: RegistrationFormProps) {
         </div>
 
         {/* Submit Button */}
+        {uploadProgress && (
+          <div className="text-sm text-center text-purple-400">
+            {uploadProgress}
+          </div>
+        )}
         <motion.button
           type="submit"
           whileHover={{ scale: 1.02 }}
           whileTap={{ scale: 0.98 }}
-          disabled={!formData.username || !formData.profession || formData.interests.length === 0}
+          disabled={!formData.username || !formData.profession || formData.interests.length === 0 || isSubmitting}
           className="w-full py-2 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-lg 
             font-medium hover:from-purple-500 hover:to-pink-500 transition-all mt-4 text-sm
-            disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:from-purple-600 disabled:hover:to-pink-600"
+            disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          Complete Profile
+          {isSubmitting ? 'Creating Profile...' : 'Complete Profile'}
         </motion.button>
       </form>
     </motion.div>

@@ -8,46 +8,21 @@ export interface UserProfile {
   profession: string;
   interests: string[];
   socialLinks: Record<string, string>;
+  ipfsCid?: string;
+  lastUpdated?: string;
 }
 
 export const getUserProfile = (address?: string): UserProfile | null => {
   try {
-    // If no address provided, try to get last used profile
-    if (!address) {
-      // Try to get profile from last connected account
-      const lastAccount = localStorage.getItem('lastConnectedAccount');
-      
-      // Try all possible storage keys
-      const allProfiles = Object.keys(localStorage)
-        .filter(key => key.startsWith('userProfile_'))
-        .map(key => {
-          try {
-            return JSON.parse(localStorage.getItem(key) || '');
-          } catch {
-            return null;
-          }
-        })
-        .filter(Boolean);
-
-      if (allProfiles.length > 0) {
-        // Return the most recently updated profile
-        return allProfiles.sort((a, b) => 
-          new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
-        )[0];
-      }
-
-      // Fallback to generic userProfile
-      const genericProfile = localStorage.getItem('userProfile');
-      if (genericProfile) return JSON.parse(genericProfile);
-
-      return null;
+    if (address) {
+      // Try to get profile specific to address
+      const profile = localStorage.getItem(`profile_${address.toLowerCase()}`);
+      if (profile) return JSON.parse(profile);
     }
     
-    // If address provided, try to get specific profile
-    const profile = localStorage.getItem(`userProfile_${address.toLowerCase()}`);
-    if (profile) return JSON.parse(profile);
-
-    return null;
+    // Fallback to general profile
+    const profile = localStorage.getItem('userProfile');
+    return profile ? JSON.parse(profile) : null;
   } catch (error) {
     console.error('Error getting user profile:', error);
     return null;

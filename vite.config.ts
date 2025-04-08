@@ -1,44 +1,28 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
+import dotenv from 'dotenv';
+
+// Load env variables
+dotenv.config();
 
 export default defineConfig({
   plugins: [react()],
   resolve: {
     alias: {
-      '@': '/src'
+      '@': path.resolve(__dirname, './src')
     }
   },
   server: {
     port: 5173,
     host: true,
     open: true,
-    strictPort: false,
   },
-  optimizeDeps: {
-    include: ['react', 'react-dom', 'ethers'],
-    esbuildOptions: {
-      target: 'es2020',
-    }
-  },
-  build: {
-    outDir: 'dist',
-    sourcemap: true,
-    target: 'es2020',
-    minify: 'esbuild',
-    assetsDir: 'assets',
-    rollupOptions: {
-      output: {
-        manualChunks: {
-          vendor: ['react', 'react-dom', 'react-router-dom'],
-          utils: ['ethers']
-        }
-      }
-    }
-  },
-  preview: {
-    port: 5173,
-    host: true,
-    strictPort: true,
+  define: {
+    // Explicitly make env variables available
+    'process.env.VITE_PINATA_JWT': JSON.stringify(process.env.VITE_PINATA_JWT),
+    'process.env.VITE_PINATA_GATEWAY': JSON.stringify(process.env.VITE_PINATA_GATEWAY),
+    'process.env.VITE_PINATA_API_KEY': JSON.stringify(process.env.VITE_PINATA_API_KEY),
+    'process.env.VITE_PINATA_API_SECRET': JSON.stringify(process.env.VITE_PINATA_API_SECRET)
   }
 });

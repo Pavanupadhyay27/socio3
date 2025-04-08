@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { 
   Image, Link, List, MessageCircle, Bold, Italic, 
@@ -8,6 +8,8 @@ import { formatText } from "./editorUtils";
 import { MarkdownPreview } from "./MarkdownPreview";
 import { savePost } from "../../utils/postStorage";
 import { useNavigate } from "react-router-dom";
+import { RichTextEditor } from './RichTextEditor';
+import { v4 as uuidv4 } from 'uuid';
 
 type PostType = 'text' | 'media' | 'link' | 'poll';
 type Community = {
@@ -32,6 +34,13 @@ export function CreatePostForm() {
   const [showCommunityDropdown, setShowCommunityDropdown] = useState(false);
   const [markdownMode, setMarkdownMode] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const [videoUrls, setVideoUrls] = useState<{ [key: number]: string }>({});
+
+  useEffect(() => {
+    return () => {
+      Object.values(videoUrls).forEach(url => URL.revokeObjectURL(url));
+    };
+  }, [videoUrls]);
 
   const communities: Community[] = [
     { id: '1', name: 'Technology' },
@@ -69,7 +78,25 @@ export function CreatePostForm() {
     const mediaFiles = files.filter(file => 
       file.type.startsWith('image/') || file.type.startsWith('video/')
     );
+    
+    // Clear previous URLs
+    selectedFiles.forEach((_, index) => {
+      if (videoUrls[index]) {
+        URL.revokeObjectURL(videoUrls[index]);
+      }
+    });
+    
+    const newVideoUrls: { [key: number]: string } = {};
+    mediaFiles.forEach((file, index) => {
+      if (file.type.startsWith('video/')) {
+        const videoBlob = new Blob([file], { type: file.type });
+        const videoUrl = URL.createObjectURL(videoBlob);
+        newVideoUrls[selectedFiles.length + index] = videoUrl;
+      }
+    });
+    
     setSelectedFiles(prev => [...prev, ...mediaFiles]);
+    setVideoUrls(prev => ({ ...prev, ...newVideoUrls }));
   };
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -79,6 +106,14 @@ export function CreatePostForm() {
   };
 
   const removeFile = (index: number) => {
+    if (videoUrls[index]) {
+      URL.revokeObjectURL(videoUrls[index]);
+      setVideoUrls(prev => {
+        const updated = { ...prev };
+        delete updated[index];
+        return updated;
+      });
+    }
     setSelectedFiles(prev => prev.filter((_, i) => i !== index));
   };
 
@@ -169,12 +204,17 @@ export function CreatePostForm() {
                     src={URL.createObjectURL(file)}
                     alt="Preview"
                     className="w-full h-full object-cover"
+                    onLoad={(e) => URL.revokeObjectURL((e.target as HTMLImageElement).src)}
                   />
                 ) : file.type.startsWith('video/') ? (
                   <video
-                    src={URL.createObjectURL(file)}
+                    src={videoUrls[index]}
                     controls
+                    playsInline
+                    preload="metadata"
                     className="w-full h-full object-cover"
+                    controlsList="nodownload"
+                    crossOrigin="anonymous"
                   />
                 ) : null}  
               </div>
@@ -222,103 +262,50 @@ export function CreatePostForm() {
   );
 
   const renderTextEditor = () => (
-    <div className="mb-4">
-      <div className="flex justify-between items-center mb-2">
-        <div className="flex flex-wrap gap-1 p-1.5 bg-black rounded-lg border border-white/10">
-          {[
-            { icon: Bold, label: 'Bold', format: 'bold', tooltip: 'Ctrl+B' },
-            { icon: Italic, label: 'Italic', format: 'italic', tooltip: 'Ctrl+I' },
-            { icon: Strikethrough, label: 'Strikethrough', format: 'strikethrough', tooltip: 'Ctrl+S' },
-            { icon: Superscript, label: 'Superscript', format: 'superscript', tooltip: 'Ctrl+Shift+.' },
-            { icon: Heading, label: 'Heading', format: 'heading', tooltip: 'Ctrl+H' },
-            { icon: Link2, label: 'Link', format: 'link', tooltip: 'Ctrl+K' },
-            { icon: List, label: 'Bullet List', format: 'bulletList', tooltip: 'Ctrl+U' },
-            { icon: ListOrdered, label: 'Number List', format: 'numberList', tooltip: 'Ctrl+O' },
-            { icon: Quote, label: 'Quote Block', format: 'quote', tooltip: 'Ctrl+Q' },
-            { icon: Code, label: 'Code', format: '`', tooltip: '`' },
-            { icon: Code, label: 'Code Block', format: 'codeBlock', tooltip: 'Ctrl+Shift+`' },
-            { icon: Table, label: 'Table', format: 'table', tooltip: 'Ctrl+T' },
-          ].map(({ icon: Icon, label, format, tooltip }) => (
-            <motion.button
-              key={format}
-              onClick={() => handleFormat(format)}
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              className="p-2 text-gray-400 hover:text-white hover:bg-white/10 rounded group relative"
-              title={`${label} (${tooltip})`}
-            >
-              <Icon size={20} />
-              <span className="absolute -bottom-8 left-1/2 transform -translate-x-1/2 px-2 py-1 
-                bg-black/90 text-white text-xs rounded opacity-0 group-hover:opacity-100 
-                transition-opacity whitespace-nowrap z-10">
-                {tooltip}
-              </span>
-            </motion.button>
-          ))}
+    <div className="mb-4 space-y-4">
+      <RichTextEditor
+        value={content}
+        onChange={setContent}
+        placeholder="Write your post content here..."
+      />
+      
+      <div className="flex justify-between items-center text-xs text-gray-400">
+        <div>
+          {content.length} characters
         </div>
-        <div className="flex gap-2">
-          <button
-            onClick={() => setMarkdownMode(!markdownMode)}
-            className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-500"
-          >
-            {markdownMode ? 'Switch to Rich Text' : 'Switch to Markdown'}
-          </button>
-          
-          <button
-            onClick={() => setIsPreview(!isPreview)}
-            className="flex items-center gap-2 px-4 py-2 bg-white/5 rounded-lg hover:bg-white/10"
-          >
-            {isPreview ? (
-              <>
-                <Edit2 size={16} />
-                <span>Edit</span>
-              </>
-            ) : (
-              <>
-                <Eye size={16} />
-                <span>Preview</span>
-              </>
-            )}
-          </button>
-        </div>
+        <motion.button
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
+          onClick={() => setIsPreview(!isPreview)}
+          className="flex items-center gap-2 px-3 py-1.5 bg-white/5 rounded-lg hover:bg-white/10 transition-colors"
+        >
+          {isPreview ? 'Edit' : 'Preview'}
+        </motion.button>
       </div>
-
-      {isPreview ? (
-        <div className="w-full min-h-[12rem] bg-black border border-white/10 rounded-lg px-3 py-2">
-          <MarkdownPreview content={content} />
-        </div>
-      ) : (
-        <div className="relative">
-          <textarea
-            ref={textareaRef}
-            value={content}
-            onChange={(e) => setContent(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.ctrlKey) {
-                switch (e.key.toLowerCase()) {
-                  case 'b': handleFormat('bold'); e.preventDefault(); break;
-                  case 'i': handleFormat('italic'); e.preventDefault(); break;
-                  case 'k': handleFormat('link'); e.preventDefault(); break;
-                }
-              }
-            }}
-            placeholder="Write your post content here..."
-            className="w-full h-48 bg-black border border-white/10 rounded-lg px-3 py-2 text-white 
-              placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500/30 resize-none
-              font-mono text-sm"
-          />
-          <div className="absolute bottom-2 right-2 text-xs text-gray-500">
-            Markdown supported
-          </div>
-        </div>
+      
+      {isPreview && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="prose prose-invert max-w-none p-4 bg-black/40 rounded-lg border border-white/10"
+          dangerouslySetInnerHTML={{ __html: content }}
+        />
       )}
     </div>
   );
 
   return (
     <div className="container mx-auto px-4 py-4 max-w-2xl">
-      <div className="bg-gradient-to-br from-purple-900/20 to-black/90 rounded-xl p-6 border border-white/10 shadow-2xl backdrop-blur-sm">
-        <h1 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-purple-400 to-pink-500 mb-6">Create Post</h1>
+      <motion.div 
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="bg-gradient-to-br from-purple-900/20 to-black/90 rounded-xl p-6 
+          border border-white/10 shadow-2xl backdrop-blur-sm"
+      >
+        <h1 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r 
+          from-purple-400 to-pink-500 mb-6">
+          Create Post
+        </h1>
 
         <div className="space-y-4">
           <div className="relative">
@@ -454,7 +441,7 @@ export function CreatePostForm() {
             </motion.button>
           </div>
         </div>
-      </div>
+      </motion.div>
     </div>
   );
 }

@@ -6,6 +6,7 @@ import { useWallet } from '../contexts/WalletContext';
 import { getUserProfile, setUserProfile } from '../utils/storage';
 import type { RegistrationData } from './RegistrationForm';
 import { Layout } from './Layout';
+import { ipfsStorage } from '../services/ipfsStorage';
 
 const INTERESTS = [
   "DeFi", "NFTs", "Gaming", "DAOs", "Web3", 
@@ -32,6 +33,7 @@ export function EditProfileForm() {
   });
   const [avatar, setAvatar] = useState<string>('');
   const [showSuccess, setShowSuccess] = useState(false);
+  const [uploadStatus, setUploadStatus] = useState('');
 
   useEffect(() => {
     if (!account) {
@@ -63,15 +65,38 @@ export function EditProfileForm() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setUploadStatus('Uploading to IPFS...');
+    
     try {
-      await setUserProfile(formData, account!);
+      // Prepare profile data
+      const profileData = {
+        ...formData,
+        walletAddress: account,
+        updatedAt: new Date().toISOString()
+      };
+
+      console.log('Submitting profile data:', profileData);
+
+      // Upload to Pinata
+      const ipfsCid = await ipfsStorage.saveProfile(profileData);
+      console.log('Got IPFS CID:', ipfsCid);
+
+      // Save to local storage with IPFS reference
+      await setUserProfile({
+        ...profileData,
+        ipfsCid
+      }, account!);
+
+      setUploadStatus('Profile updated successfully!');
       setShowSuccess(true);
+      
       setTimeout(() => {
         navigate('/posts');
       }, 1500);
-    } catch (error) {
-      console.error('Failed to save profile:', error);
-      alert('Failed to save profile changes');
+    } catch (error: any) {
+      console.error('Profile update failed:', error);
+      setUploadStatus('Failed to update profile');
+      alert(`Failed to save profile: ${error.message}`);
     }
   };
 
@@ -271,6 +296,11 @@ export function EditProfileForm() {
                   Save Changes
                 </motion.button>
               </form>
+              {uploadStatus && (
+                <div className="text-sm text-center mt-2">
+                  {uploadStatus}
+                </div>
+              )}
             </motion.div>
           )}
         </AnimatePresence>
