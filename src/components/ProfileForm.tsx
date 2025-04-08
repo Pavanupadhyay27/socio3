@@ -76,7 +76,7 @@ export const ProfileForm = ({ onClose, onSubmit }: ProfileFormProps) => {
           <X size={20} />
         </button>
         
-        <h2 className="text-2xl font-bold text-white mb-6">Complete Your Profile</h2>
+        <h2 className="text-2xl font-bold text-white mb-6">Complete Your hashdit Profile</h2>
         
         <div className="flex justify-center mb-6">
           <div className="relative group">

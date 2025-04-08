@@ -1,33 +1,32 @@
-export interface Post {
-  id: string;
-  title: string;
-  content: string;
-  type: 'text' | 'media' | 'link' | 'poll';
-  authorAddress: string;
-  authorName?: string;
-  authorProfilePic?: string;
-  tags: string[];
-  media?: { url: string; type: 'image' | 'video' }[];
-  linkUrl?: string;
-  community?: string;
-  createdAt: string;
-  updatedAt: string;
-  votes: {
-    up: string[];
-    down: string[];
-  };
-  comments: Comment[];
-  isDraft?: boolean;
+export interface Media {
+  type: 'image' | 'video';
+  url: string;
+}
+
+export interface Votes {
+  up: string[];
+  down: string[];
 }
 
 export interface Comment {
   id: string;
+  text: string;
+  authorName: string;
+  authorAddress: string;
+  createdAt: string;
+}
+
+export interface Post {
+  id: string;
+  title: string;
   content: string;
   authorAddress: string;
-  authorName?: string;
+  authorName: string;
+  authorProfilePic?: string;
   createdAt: string;
-  votes: {
-    up: string[];
-    down: string[];
-  };
+  tags: string[];
+  votes: Votes;
+  comments: Comment[];
+  community?: string;
+  media?: Media[];
 }

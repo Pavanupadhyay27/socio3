@@ -1,20 +1,13 @@
 import React from 'react';
 import type { FC } from 'react';
+import MarkdownIt from 'markdown-it';
 
-let md: any;
-
-// Dynamically import markdown-it
-try {
-  const MarkdownIt = require('markdown-it');
-  md = new MarkdownIt({
-    html: true,
-    linkify: true,
-    typographer: true,
-    breaks: true
-  });
-} catch (error) {
-  console.error('Failed to load markdown-it:', error);
-}
+const md = new MarkdownIt({
+  html: true,
+  linkify: true,
+  typographer: true,
+  breaks: true
+});
 
 interface MarkdownPreviewProps {
   content: string;

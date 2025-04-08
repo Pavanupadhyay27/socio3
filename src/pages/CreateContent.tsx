@@ -11,7 +11,7 @@ interface CreateContentProps {
   onClose?: () => void;
 }
 
-const CreateContent: React.FC<CreateContentProps> = ({ onClose }) => {
+export const CreateContent: React.FC<CreateContentProps> = ({ onClose }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const { account } = useWallet();

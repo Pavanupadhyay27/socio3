@@ -1,15 +1,13 @@
-import React, { useState, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { 
-  X, Image, Link2, BarChart3, Hash, Bold, Italic, Strikethrough, 
-  Heading, List, ListOrdered, Quote, Code, Table, Upload, Eye, Edit2,
-  ChevronDown, Superscript
+  Image, Link, List, MessageCircle, Bold, Italic, 
+  Code, FileText, Hash, PlusCircle 
 } from 'lucide-react';
-import { formatText } from './editorUtils';
-import { MarkdownPreview } from './MarkdownPreview';
-import { useWallet } from '../../contexts/WalletContext';
-import { savePost } from '../../utils/postStorage';
-import { useNavigate } from 'react-router-dom';
+import { formatText } from "./editorUtils";
+import { MarkdownPreview } from "./MarkdownPreview";
+import { savePost } from "../../utils/postStorage";
+import { useNavigate } from "react-router-dom";
 
 type PostType = 'text' | 'media' | 'link' | 'poll';
 type Community = {
@@ -19,7 +17,6 @@ type Community = {
 };
 
 export function CreatePostForm() {
-  const { account } = useWallet();
   const navigate = useNavigate();
   
   const [postType, setPostType] = useState<PostType>('text');
@@ -99,79 +96,31 @@ export function CreatePostForm() {
     }, 0);
   };
 
-  const handleSaveDraft = async () => {
-    if (!account) {
-      alert('Please connect your wallet to save a draft');
-      return;
-    }
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!title || !content) return;
 
     try {
       const postData = {
         title,
         content,
-        type: postType,
-        tags,
-        authorAddress: account,
-        media: selectedFiles.map(file => ({
-          url: URL.createObjectURL(file),
-          type: file.type.startsWith('image/') ? 'image' : 'video'
-        })),
-        linkUrl: postType === 'link' ? linkUrl : undefined,
-        community: selectedCommunity?.name
-      };
-
-      await savePost(postData, true);
-      navigate('/profile');
-    } catch (error) {
-      console.error('Error saving draft:', error);
-      alert('Failed to save draft');
-    }
-  };
-
-  const handlePublish = async () => {
-    if (!account) {
-      alert('Please connect your wallet to publish');
-      return;
-    }
-
-    try {
-      // Convert files to base64 strings before saving
-      const mediaPromises = selectedFiles.map(file => 
-        new Promise((resolve) => {
-          const reader = new FileReader();
-          reader.onloadend = () => {
-            resolve({
-              url: reader.result,
-              type: file.type.startsWith('image/') ? 'image' : 'video'
-            });
-          };
-          reader.readAsDataURL(file);
-        })
-      );
-
-      // Wait for all files to be converted
-      const processedMedia = await Promise.all(mediaPromises);
-
-      const postData = {
-        title,
-        content,
-        type: postType,
-        tags: tags || [],
-        authorAddress: account,
-        media: processedMedia,
-        linkUrl: postType === 'link' ? linkUrl : undefined,
-        community: selectedCommunity?.name,
+        type: 'text',
+        tags: selectedTags,
+        authorAddress: 'anonymous', // Changed from wallet address
+        media: uploadedMedia,
+        linkUrl: linkUrl,
+        community: selectedCommunity,
         votes: { up: [], down: [] },
         comments: [],
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()
       };
 
-      await savePost(postData);
-      navigate('/posts');
+      const postId = await savePost(postData);
+      navigate(`/post/${postId}`);
     } catch (error) {
-      console.error('Error publishing post:', error);
-      alert('Failed to publish post. Please try again.');
+      console.error('Failed to create post:', error);
+      alert('Failed to create post. Please try again.');
     }
   };
 

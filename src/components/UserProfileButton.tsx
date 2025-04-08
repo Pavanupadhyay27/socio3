@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { UserCircle, Settings } from 'lucide-react';
+import { UserCircle, Settings, User } from 'lucide-react';
 import { useWallet } from '../contexts/WalletContext';
 import { getUserProfile } from '../utils/storage';
 import type { RegistrationData } from './RegistrationForm';
@@ -27,35 +27,33 @@ export const UserProfileButton: React.FC = () => {
   const [showRegistrationForm, setShowRegistrationForm] = useState(false);
 
   const loadProfile = useCallback(() => {
-    const profile = getUserProfile();
-    if (account && profile?.walletAddress === account) {
-      setUserProfile(profile);
-      // Preload the image
-      if (profile.avatar) {
-        const img = new Image();
-        img.src = profile.avatar;
-        img.onload = () => setImagePreloaded(true);
+    try {
+      const profile = getUserProfile(account);
+      if (profile && (!account || profile.walletAddress.toLowerCase() === account.toLowerCase())) {
+        setUserProfile(profile);
+        if (profile.avatar) {
+          const img = new Image();
+          img.src = profile.avatar;
+          img.onload = () => setImagePreloaded(true);
+        }
       }
-    } else {
-      setUserProfile(null);
-      setImagePreloaded(false);
+    } catch (error) {
+      console.error('Error loading profile:', error);
     }
   }, [account]);
 
   useEffect(() => {
     loadProfile();
-
+    
+    if (!account) {
+      setUserProfile(null);
+      setImagePreloaded(false);
+      // Remove navigation on disconnect
+      setShowDropdown(false);
+    }
+    
     const handleStorageChange = () => loadProfile();
-    const handleProfileUpdate = (e: CustomEvent<RegistrationData>) => {
-      if (account && e.detail.walletAddress === account) {
-        setUserProfile(e.detail);
-        if (e.detail.avatar) {
-          const img = new Image();
-          img.src = e.detail.avatar;
-          img.onload = () => setImagePreloaded(true);
-        }
-      }
-    };
+    const handleProfileUpdate = (e: CustomEvent<RegistrationData>) => loadProfile();
     
     window.addEventListener('storage', handleStorageChange);
     window.addEventListener('profileUpdated', handleProfileUpdate as EventListener);
@@ -63,10 +61,6 @@ export const UserProfileButton: React.FC = () => {
     return () => {
       window.removeEventListener('storage', handleStorageChange);
       window.removeEventListener('profileUpdated', handleProfileUpdate as EventListener);
-      if (!account) {
-        setUserProfile(null);
-        setImagePreloaded(false);
-      }
     };
   }, [account, loadProfile]);
 
@@ -77,9 +71,13 @@ export const UserProfileButton: React.FC = () => {
     navigate('/profile/edit');
   };
 
+  const handleViewProfile = () => {
+    setShowDropdown(false);
+    navigate('/profile');
+  };
+
   const handleRegistrationSubmit = (data: RegistrationData) => {
     if (account) {
-      // Create updated profile with wallet address
       const updatedProfile = {
         ...data,
         walletAddress: account,
@@ -87,30 +85,23 @@ export const UserProfileButton: React.FC = () => {
       };
 
       try {
-        // Save profile to localStorage
+        // Save both with specific and generic keys
+        localStorage.setItem(`userProfile_${account.toLowerCase()}`, JSON.stringify(updatedProfile));
         localStorage.setItem('userProfile', JSON.stringify(updatedProfile));
+        localStorage.setItem('lastConnectedAccount', account);
         
-        // Update local state
         setUserProfile(updatedProfile);
-        
-        // Dispatch custom event for immediate UI update
-        const profileEvent = new CustomEvent('profileUpdated', {
-          detail: updatedProfile
-        });
-        window.dispatchEvent(profileEvent);
+        window.dispatchEvent(new CustomEvent('profileUpdated', { detail: updatedProfile }));
 
-        // Close forms
         setShowDropdown(false);
         setShowRegistrationForm(false);
-        
-        // Navigate to profile
-        navigate('/profile');
+        navigate('/posts');
       } catch (error) {
         console.error('Error saving profile:', error);
         alert('Failed to create profile. Please try again.');
       }
     } else {
-      alert('Please connect your wallet to create a profile');
+      navigate('/posts');
     }
   };
 
@@ -123,29 +114,26 @@ export const UserProfileButton: React.FC = () => {
           className="relative flex items-center space-x-2 text-white hover:bg-white/10 p-2 rounded-full overflow-hidden"
         >
           {account && userProfile?.avatar ? (
-            <div className={`w-8 h-8 rounded-full overflow-hidden border-2 border-purple-500/50 transition-opacity duration-200 ${imagePreloaded ? 'opacity-100' : 'opacity-0'}`}>
+            <div className="w-8 h-8 rounded-full overflow-hidden">
               <img 
                 src={userProfile.avatar} 
-                alt="Profile"
+                alt={userProfile.username}
                 className="w-full h-full object-cover"
-                onLoad={() => setImagePreloaded(true)}
               />
-              {!imagePreloaded && (
-                <div className="absolute inset-0 bg-purple-500/20 flex items-center justify-center">
-                  <UserCircle className="w-6 h-6 text-purple-300" />
-                </div>
-              )}
             </div>
           ) : (
-            <UserCircle className="w-8 h-8" />
+            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-600 to-pink-600 
+              flex items-center justify-center text-white font-bold">
+              {userProfile?.username?.[0]?.toUpperCase() || <User size={16} />}
+            </div>
           )}
         </motion.button>
 
         {showDropdown && (
           <motion.div
-            initial={{ opacity: 0, y: 10 }}
+            initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 10 }}
+            exit={{ opacity: 0, y: -10 }}
             className="absolute right-0 mt-2 w-56 rounded-xl bg-gradient-to-br from-purple-900/90 to-black/90 
               backdrop-blur-lg border border-white/10 shadow-lg overflow-hidden z-[90]"
           >
@@ -157,13 +145,10 @@ export const UserProfileButton: React.FC = () => {
                 </div>
                 <motion.div
                   whileHover={{ backgroundColor: 'rgba(255,255,255,0.1)' }}
-                  onClick={() => {
-                    navigate('/profile');
-                    setShowDropdown(false);
-                  }}
+                  onClick={handleViewProfile}
                   className="flex items-center space-x-2 w-full px-4 py-3 text-white text-sm cursor-pointer"
                 >
-                  <UserCircle className="w-4 h-4" />
+                  <User className="w-4 h-4" />
                   <span>View Profile</span>
                 </motion.div>
                 <motion.div

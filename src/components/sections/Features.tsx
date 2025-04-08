@@ -1,9 +1,10 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { Shield, Zap, Globe2, Users, Code2, Coins, Laptop, Network, Lock } from 'lucide-react';
 
 export const Features = () => {
-  const features = [
+  // Memoize features array to prevent recreation on each render
+  const features = useMemo(() => [
     {
       title: 'Seamless Integration',
       description: 'Connect with multiple wallets effortlessly',
@@ -58,11 +59,10 @@ export const Features = () => {
       icon: Lock,
       gradient: 'from-rose-600/20 to-pink-600/20'
     }
-  ];
+  ], []);
 
   return (
     <section className="py-24 relative overflow-hidden">
-      {/* Background gradient matching hero section */}
       <div className="absolute inset-0 bg-gradient-to-b from-purple-900/20 via-black/0 to-black/80 pointer-events-none" />
       
       <div className="container mx-auto px-4 relative z-10">
@@ -70,6 +70,7 @@ export const Features = () => {
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
+          transition={{ duration: 0.3 }} // Reduced duration
           className="text-center mb-16"
         >
           <h2 className="text-4xl md:text-5xl font-bold mb-6">
@@ -92,28 +93,24 @@ export const Features = () => {
               key={i}
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ delay: i * 0.1 }}
-              className={`bg-gradient-to-br ${feature.gradient} backdrop-blur-xl border border-white/10 p-6 rounded-xl
-                hover:scale-105 transform transition-transform duration-300 relative group`}
+              viewport={{ once: true, margin: "-50px" }}
+              transition={{ 
+                duration: 0.3,
+                delay: i * 0.1,
+                ease: "easeOut"
+              }}
+              className="will-change-transform optimize-gpu bg-gradient-to-br backdrop-blur-xl border border-white/10 p-6 rounded-xl
+                hover:scale-105 transform transition-transform duration-300 relative group"
+              style={{
+                backgroundImage: `linear-gradient(to bottom right, ${feature.gradient})`,
+                contain: 'content',
+              }}
             >
-              <div className="absolute inset-0 bg-black/50 rounded-xl backdrop-blur-sm opacity-0 
-                group-hover:opacity-100 transition-opacity duration-300" />
-              
               <div className="relative z-10">
-                <feature.icon className="w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 lg:w-10 lg:h-10 xl:w-12 xl:h-12 
-                  text-white mb-4 transform transition-all duration-300 group-hover:scale-110" />
+                <feature.icon className="w-10 h-10 text-white mb-4 transform-gpu" />
                 <h3 className="text-xl font-semibold text-white mb-3">{feature.title}</h3>
                 <p className="text-gray-300">{feature.description}</p>
               </div>
-
-              {/* Animated gradient border */}
-              <div className="absolute inset-0 rounded-xl border border-white/20 group-hover:border-white/40 
-                transition-colors duration-300" />
-              
-              {/* Glow effect */}
-              <div className="absolute inset-0 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity 
-                duration-300 bg-gradient-to-r from-purple-500/10 to-pink-500/10 blur-xl" />
             </motion.div>
           ))}
         </div>

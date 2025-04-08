@@ -12,11 +12,13 @@ export function Login() {
   const location = useLocation();
 
   useEffect(() => {
-    // Clear any existing wallet state on load
+    // Remove auto-connection check
     if (!account && !isConnected) {
       localStorage.removeItem('lastConnectedAccount');
     }
-    
+  }, [account, isConnected]);
+
+  useEffect(() => {
     // Only redirect if we have both account and profile
     if (account && userProfile) {
       const destination = location.state?.from?.pathname || '/app';
@@ -109,3 +111,5 @@ export function Login() {
     </div>
   );
 }
+
+export default Login;

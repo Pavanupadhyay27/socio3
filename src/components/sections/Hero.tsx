@@ -28,10 +28,10 @@ export const Hero = () => {
   };
 
   const handleRegistrationSubmit = (data: RegistrationData) => {
-    // Save to localStorage or your backend
+    // Save to localStorage
     localStorage.setItem('userProfile', JSON.stringify(data));
     setShowRegistration(false);
-    // Navigate to profile instead of dashboard
+    // Navigate to profile
     navigate('/profile');
   };
 

@@ -16,36 +16,28 @@ export interface Post {
 
 const POSTS_KEY = 'hashdit_posts';
 
-export const savePost = async (post: Omit<Post, 'id'>, isDraft = false): Promise<string> => {
-  const posts = getPosts();
-  const id = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-
-  // Ensure media is properly processed before saving
-  const processedPost = {
-    ...post,
-    id,
-    media: post.media?.map(media => ({
-      url: media.url,
-      type: media.type
-    }))
-  };
-
-  if (isDraft) {
-    localStorage.setItem(`draft_${id}`, JSON.stringify(processedPost));
-  } else {
-    posts.unshift(processedPost);
-    localStorage.setItem(POSTS_KEY, JSON.stringify(posts));
-  }
-
-  return id;
+export const clearPosts = () => {
+  localStorage.removeItem('hashdit_posts');
 };
 
 export const getPosts = (): Post[] => {
   try {
-    const posts = localStorage.getItem(POSTS_KEY);
+    const posts = localStorage.getItem('hashdit_posts');
     return posts ? JSON.parse(posts) : [];
   } catch (error) {
-    console.error('Error loading posts:', error);
+    console.error('Error getting posts:', error);
     return [];
+  }
+};
+
+export const savePost = (post: Post) => {
+  try {
+    const posts = getPosts();
+    posts.unshift(post);
+    localStorage.setItem('hashdit_posts', JSON.stringify(posts));
+    return true;
+  } catch (error) {
+    console.error('Error saving post:', error);
+    return false;
   }
 };

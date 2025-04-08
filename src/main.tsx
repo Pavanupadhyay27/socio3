@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client';
 import { RouterProvider } from 'react-router-dom';
 import { router } from './App.routes';
 import { LoadingProvider } from './contexts/LoadingContext';
+import { WalletProvider } from './contexts/WalletContext';
 import './index.css';
 
 const container = document.getElementById('root');
@@ -12,8 +13,10 @@ const root = createRoot(container);
 
 root.render(
   <React.StrictMode>
-    <LoadingProvider>
-      <RouterProvider router={router} />
-    </LoadingProvider>
+    <WalletProvider>
+      <LoadingProvider>
+        <RouterProvider router={router} />
+      </LoadingProvider>
+    </WalletProvider>
   </React.StrictMode>
 );
